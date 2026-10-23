@@ -9,10 +9,15 @@ _ZUI_OPTDEF_checklist=(
   '|ordered|flag|Return items in the order they were checked|0'
   '|height|int|Number of visible rows (0 = fit content)|0'
   '|button|multi|Button in Label=action form|'
+  '|input-delimiter|str|Delimiter used when reading stdin (default: newline)|'
+  '|output-delimiter|str|Delimiter placed between returned values|'
+  '|label-delimiter|str|Split items into label and value on this delimiter|'
+  '|strip-ansi|flag|Remove ANSI escapes from items read from stdin|0'
   '|timeout|str|Close with exit 124 after a duration|'
   '|width|int|Dialog width in columns (0 = automatic)|0'
   '|default-button|int|Button triggered by Enter|1'
   '|border|str|Border: auto, rounded, sharp, double, thick, ascii, none|auto'
+  "${_ZUI_DIALOGDEF[@]}"
 )
 
 _ZUI_CMD_DESC[checklist]="Mark any number of items and confirm with a button."
@@ -27,6 +32,7 @@ _zui_cmd_checklist() {
   _zui_items_from_args
   _zui_need_items
   _zui_list_items=("${_zui_items[@]}")
+  _zui_list_labels=("${_zui_item_labels[@]}")
   _zui_list_multi=1
   _zui_list_limit=${_ZUI_OPT[limit]:-0}
   [[ ${_zui_list_limit} == <-> ]] || _zui_list_limit=0
@@ -34,7 +40,13 @@ _zui_cmd_checklist() {
   _zui_list_ordered=${_ZUI_OPT[ordered]:-0}
   _zui_list_build
   _zui_multi selected
-  (( ${#_ZUI_MULTI_ARR} )) && _zui_list_mark_initial "${_ZUI_MULTI_ARR[@]}"
+  if (( ${#_ZUI_MULTI_ARR} )) && [[ ${_ZUI_MULTI_ARR[1]} == '*' ]]; then
+    local i
+    for (( i = 1; i <= ${#_zui_list_items}; i++ )); do _zui_list_marks[$i]=1; _zui_list_order+=($i); done
+  elif (( ${#_ZUI_MULTI_ARR} )); then
+    _zui_list_mark_initial "${_ZUI_MULTI_ARR[@]}"
+  fi
+  [[ -n ${_ZUI_OPT[default-item]:-} ]] && _zui_list_select_value "${_ZUI_OPT[default-item]}"
 
   _zui_dlg[widget]=checklist
   _zui_dlg[message]=${_ZUI_OPT[message]:-}
@@ -49,6 +61,6 @@ _zui_cmd_checklist() {
 
   _zui_dialog_run
   local rc=$?
-  _zui_emit "$_ZUI_OUT"
+  _zui_emit_out "$_ZUI_OUT"
   return $rc
 }

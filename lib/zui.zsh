@@ -27,7 +27,9 @@ zui::begin() {
   _zui_ed_reset ""
   _zui_ta_reset ""
   _zui_form_labels=(); _zui_form_values=(); _zui_form_mask=()
-  _zui_form_focus=1; _zui_form_scroll=0
+  _zui_form_focus=1; _zui_form_scroll=0; _zui_form_limit=0
+  _zui_ed_cursor_mode=blink
+  _zui_ta_prompt=""; _zui_ta_cursor_mode=blink; _zui_ta_max_lines=0; _zui_ta_highlight=0
   _zui_list_items=()
   _zui_list_reset
   _zui_list_multi=0; _zui_list_limit=0; _zui_list_ordered=0

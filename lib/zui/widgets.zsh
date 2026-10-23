@@ -86,14 +86,17 @@ _zui_btn_draw() { # y x w focused
 # ---------------------------------------------------------------------------
 # List / checklist
 # ---------------------------------------------------------------------------
-typeset -ga _zui_list_items=() _zui_list_view=() _zui_list_view_raw=() _zui_list_order=()
+typeset -ga _zui_list_items=() _zui_list_labels=() _zui_list_view=() _zui_list_view_raw=() _zui_list_order=()
 typeset -gA _zui_list_marks=()
 typeset -g  _zui_list_filter="" _zui_list_cursor_char="> " _zui_list_sel_char="✓"
 typeset -g  _zui_list_unsel=" "
+typeset -g  _zui_list_cursor_prefix="• " _zui_list_sel_prefix="✓ " _zui_list_unsel_prefix="• "
+typeset -g  _zui_list_placeholder="" _zui_list_prompt="/ "
 typeset -gi _zui_list_cursor=1 _zui_list_offset=0 _zui_list_multi=0
 typeset -gi _zui_list_limit=0 _zui_list_ordered=0 _zui_list_fuzzy=1
 typeset -gi _zui_list_show_filter=0 _zui_list_filter_pos=1
-typeset -gi _zui_list_active_filter=0
+typeset -gi _zui_list_active_filter=0 _zui_list_prefix_mode=0
+typeset -gi _zui_list_fuzzy_sort=1 _zui_list_reverse=0 _zui_list_strict=0
 
 _zui_list_reset_chars() {
   if _zui_utf8; then
@@ -106,6 +109,8 @@ _zui_list_reset_chars() {
 _zui_list_reset() {
   _zui_list_filter=""; _zui_list_filter_pos=1; _zui_list_cursor=1
   _zui_list_offset=0; _zui_list_marks=(); _zui_list_order=()
+  _zui_list_labels=(); _zui_list_prefix_mode=0; _zui_list_reverse=0
+  _zui_list_placeholder=""; _zui_list_strict=0
   _zui_list_build
 }
 
@@ -139,24 +144,25 @@ _zui_list_build() {
   _zui_list_reset_chars
   typeset -ga _zui_list_view _zui_list_view_raw _zui_list_scores
   _zui_list_view=(); _zui_list_view_raw=(); _zui_list_scores=()
-  local i item score q=$_zui_list_filter
+  local i item label score q=$_zui_list_filter
   for (( i = 1; i <= ${#_zui_list_items}; i++ )); do
     item=${_zui_list_items[i]}
+    label=${_zui_list_labels[i]:-$item}
     if [[ -z $q ]]; then
       score=0
     elif (( _zui_list_fuzzy )); then
-      _zui_fuzzy "$q" "$item"; score=$REPLY
+      _zui_fuzzy "$q" "$label"; score=$REPLY
       (( score == 0 )) && continue
     else
-      [[ ${(L)item} == *${(L)q}* ]] || continue
+      [[ ${(L)label} == *${(L)q}* ]] || continue
       score=0
     fi
-    _zui_list_view+=("$item")
+    _zui_list_view+=("$label")
     _zui_list_view_raw+=($i)
     _zui_list_scores+=($score)
   done
   # Stable insertion sort by score, descending (fuzzy only).
-  if (( _zui_list_fuzzy )) && [[ -n $q ]]; then
+  if (( _zui_list_fuzzy && _zui_list_fuzzy_sort )) && [[ -n $q ]]; then
     local a b key keyraw keyscore
     for (( a = 2; a <= ${#_zui_list_view}; a++ )); do
       key=${_zui_list_view[a]}; keyraw=${_zui_list_view_raw[a]}; keyscore=${_zui_list_scores[a]}
@@ -169,6 +175,11 @@ _zui_list_build() {
       done
       _zui_list_view[b+1]=$key; _zui_list_view_raw[b+1]=$keyraw; _zui_list_scores[b+1]=$keyscore
     done
+  fi
+  if (( _zui_list_reverse && ${#_zui_list_view} > 1 )); then
+    _zui_list_view=("${(@Oa)_zui_list_view}")
+    _zui_list_view_raw=("${(@Oa)_zui_list_view_raw}")
+    _zui_list_scores=("${(@Oa)_zui_list_scores}")
   fi
   _zui_list_cursor=1
   _zui_list_offset=0
@@ -250,19 +261,25 @@ _zui_list_draw() { # y x w h
   (( ih < 1 )) && { ih=1; filter_h=0 }
 
   if (( filter_h )); then
-    _zui_put $y $x "/ " "${_ZUI_STYLE[accent]}"
+    local pw=${#_zui_list_prompt}
+    _zui_put $y $x "$_zui_list_prompt" "${_ZUI_STYLE[accent]}"
     local q=$_zui_list_filter
-    _zui_truncate "$q" $(( w - 2 ))
-    _zui_put $y $(( x + 2 )) "$REPLY" "${_ZUI_STYLE[input]}"
+    if [[ -z $q && -n $_zui_list_placeholder ]]; then
+      _zui_truncate "$_zui_list_placeholder" $(( w - pw ))
+      _zui_put $y $(( x + pw )) "$REPLY" "${_ZUI_STYLE[muted]}"
+    else
+      _zui_truncate "$q" $(( w - pw ))
+      _zui_put $y $(( x + pw )) "$REPLY" "${_ZUI_STYLE[input]}"
+    fi
     if (( _zui_list_show_filter || _zui_list_active_filter )); then
-      local cx=$(( ${#q} + 2 ))
+      local cx=$(( ${#q} + pw ))
       (( cx > w - 1 )) && cx=$(( w - 1 ))
       _zui_put $y $(( x + cx )) ' ' "${_ZUI_STYLE[caret]}"
     fi
     _zui_put $(( y + 1 )) $x "" "${_ZUI_STYLE[text]}"
   fi
 
-  local i row=0 max=${#_zui_list_view} raw mark style prefix text tw
+  local i row=0 max=${#_zui_list_view} raw mark style prefix text tw pstyle tstyle
   (( _zui_list_cursor < 1 && max > 0 )) && _zui_list_cursor=1
   if (( _zui_list_cursor > 0 )); then
     if (( _zui_list_cursor <= _zui_list_offset )); then
@@ -273,38 +290,40 @@ _zui_list_draw() { # y x w h
   fi
   (( _zui_list_offset < 0 )) && _zui_list_offset=0
 
-  tw=$(( w - 4 ))
-  if (( _zui_list_multi )); then tw=$(( w - 6 )); fi
-  (( tw < 1 )) && tw=1
-
   for (( i = _zui_list_offset + 1; i <= max && row < ih; i++, row++ )); do
     raw=${_zui_list_view_raw[i]}
     mark=0
     (( ${+_zui_list_marks[$raw]} )) && mark=1
-    _zui_truncate "${_zui_list_view[i]}" "$tw"
-    text=$REPLY
     if (( i == _zui_list_cursor )); then
-      style=${_ZUI_STYLE[selection_focus]}
-      if (( _zui_list_multi )); then
+      if (( _zui_list_multi && _zui_list_prefix_mode )); then
+        prefix=$_zui_list_cursor_prefix; pstyle=${_ZUI_STYLE[selection_focus]}
+      elif (( _zui_list_multi )); then
         (( mark )) && prefix="[${_zui_list_sel_char}] " || prefix="[ ] "
+        pstyle=${_ZUI_STYLE[selection_focus]}
       else
-        prefix=$_zui_list_cursor_char
+        prefix=$_zui_list_cursor_char; pstyle=${_ZUI_STYLE[selection_focus]}
       fi
+      style=${_ZUI_STYLE[selection_focus]}; tstyle=$style
       _zui_fill $(( y + filter_h + row )) $x 1 $w ' ' "$style"
-      _zui_put $(( y + filter_h + row )) $x "$prefix$text" "$style"
     else
-      style=${_ZUI_STYLE[text]}
-      if (( _zui_list_multi )); then
-        if (( mark )); then
-          _zui_put $(( y + filter_h + row )) $x "[${_zui_list_sel_char}]" "${_ZUI_STYLE[mark]}"
-          _zui_put $(( y + filter_h + row )) $(( x + 4 )) "$text" "${_ZUI_STYLE[selection]}"
-        else
-          _zui_put $(( y + filter_h + row )) $x "[ ] $text" "$style"
-        fi
+      if (( _zui_list_multi && _zui_list_prefix_mode )); then
+        if (( mark )); then prefix=$_zui_list_sel_prefix; pstyle=${_ZUI_STYLE[mark]}
+        else prefix=$_zui_list_unsel_prefix; pstyle=${_ZUI_STYLE[text]}; fi
+        tstyle=$(( mark )) && tstyle=${_ZUI_STYLE[selection]} || tstyle=${_ZUI_STYLE[text]}
+      elif (( _zui_list_multi )); then
+        if (( mark )); then prefix="[${_zui_list_sel_char}] "; pstyle=${_ZUI_STYLE[mark]}
+        else prefix="[ ] "; pstyle=${_ZUI_STYLE[text]}; fi
+        tstyle=$(( mark )) && tstyle=${_ZUI_STYLE[selection]} || tstyle=${_ZUI_STYLE[text]}
       else
-        _zui_put $(( y + filter_h + row )) $x "  $text" "$style"
+        prefix="  "; pstyle=${_ZUI_STYLE[text]}; tstyle=${_ZUI_STYLE[text]}
       fi
     fi
+    tw=$(( w - ${#prefix} - 1 ))
+    (( tw < 1 )) && tw=1
+    _zui_truncate "${_zui_list_view[i]}" "$tw"
+    text=$REPLY
+    _zui_put $(( y + filter_h + row )) $x "$prefix" "$pstyle"
+    _zui_put $(( y + filter_h + row )) $(( x + ${#prefix} )) "$text" "$tstyle"
   done
   for (( ; row < ih; row++ )); do
     _zui_fill $(( y + filter_h + row )) $x 1 $w ' ' "${_ZUI_STYLE[text]}"
@@ -341,7 +360,8 @@ _zui_list_value() { # sets REPLY
     fi
     REPLY="${(pj:\n:)picked}"
   else
-    REPLY=${_zui_list_view[_zui_list_cursor]}
+    local raw=${_zui_list_view_raw[_zui_list_cursor]:-}
+    [[ -n $raw ]] && REPLY=${_zui_list_items[raw]} || REPLY=${_zui_list_view[_zui_list_cursor]}
   fi
 }
 
@@ -349,7 +369,7 @@ _zui_list_mark_initial() { # values...
   local v i
   for v in "$@"; do
     for (( i = 1; i <= ${#_zui_list_items}; i++ )); do
-      if [[ ${_zui_list_items[i]} == "$v" ]]; then
+      if [[ ${_zui_list_items[i]} == "$v" || ${_zui_list_labels[i]:-} == "$v" ]]; then
         _zui_list_marks[$i]=1
         _zui_list_order+=($i)
         break
@@ -362,10 +382,10 @@ _zui_list_mark_initial() { # values...
 # Form
 # ---------------------------------------------------------------------------
 typeset -ga _zui_form_labels=() _zui_form_values=() _zui_form_mask=()
-typeset -gi _zui_form_focus=1 _zui_form_scroll=0 _zui_form_visible=1
+typeset -gi _zui_form_focus=1 _zui_form_scroll=0 _zui_form_visible=1 _zui_form_limit=0
 
 _zui_form_load() {
-  _zui_ed_reset "${_zui_form_values[_zui_form_focus]}" 0
+  _zui_ed_reset "${_zui_form_values[_zui_form_focus]}" $_zui_form_limit
   _zui_ed_mask=${_zui_form_mask[_zui_form_focus]:-0}
 }
 
@@ -483,7 +503,7 @@ _zui_icon() { # name -> REPLY char, _zui_icon_style
 _zui_list_select_value() { # value
   local v=$1 i
   for (( i = 1; i <= ${#_zui_list_view}; i++ )); do
-    if [[ ${_zui_list_view[i]} == "$v" ]]; then
+    if [[ ${_zui_list_view[i]} == "$v" || ${_zui_list_items[${_zui_list_view_raw[i]}]:-} == "$v" ]]; then
       _zui_list_cursor=$i
       return 0
     fi

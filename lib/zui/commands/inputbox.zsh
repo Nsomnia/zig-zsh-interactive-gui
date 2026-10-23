@@ -14,6 +14,7 @@ _ZUI_OPTDEF_inputbox=(
   '|height|int|Dialog height in rows (0 = automatic)|0'
   '|default-button|int|Button triggered by Enter|1'
   '|border|str|Border: auto, rounded, sharp, double, thick, ascii, none|auto'
+  "${_ZUI_DIALOGDEF[@]}"
 )
 
 _ZUI_CMD_DESC[inputbox]="A framed text-input dialog with buttons."
@@ -26,9 +27,11 @@ _ZUI_NOTES[inputbox]=$'The accepted value is printed to stdout after the UI clos
 _zui_cmd_inputbox() {
   _zui_dialog_reset
   local limit=${_ZUI_OPT[char-limit]:-0}
+  (( ${_ZUI_OPT[max-input]:-0} > 0 )) && limit=${_ZUI_OPT[max-input]}
   [[ $limit == <-> ]] || limit=0
   _zui_ed_reset "${_ZUI_OPT[value]:-}" $limit
   _zui_ed_mask=${_ZUI_OPT[password]:-0}
+  (( ${_ZUI_OPT[insecure]:-0} )) && _zui_ed_mask=1
   _zui_ed_placeholder=${_ZUI_OPT[placeholder]:-}
 
   _zui_dlg[widget]=input
@@ -41,6 +44,6 @@ _zui_cmd_inputbox() {
 
   _zui_dialog_run
   local rc=$?
-  _zui_emit "$_ZUI_OUT"
+  _zui_emit_out "$_ZUI_OUT"
   return $rc
 }

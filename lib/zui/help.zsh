@@ -10,6 +10,27 @@ typeset -gA _ZUI_GROUP_TITLE=(
 )
 typeset -gA _ZUI_CMD_DESC=() _ZUI_CMD_USAGE=() _ZUI_CMD_LONG=() _ZUI_CMD_GROUP=()
 typeset -gA _ZUI_EXAMPLES=() _ZUI_NOTES=() _ZUI_KEYMAP=()
+typeset -gA _ZUI_CMD_STYLES=(
+  choose   "cursor header item selected cursor-prefix selected-prefix unselected-prefix"
+  confirm  "prompt selected unselected"
+  input    "prompt placeholder cursor header"
+  write    "base cursor-line-number cursor-line cursor end-of-buffer line-number header placeholder prompt"
+  filter   "indicator selected-indicator unselected-prefix header text cursor-text match prompt placeholder"
+  file     "cursor symlink directory file permissions selected file-size header"
+  pager    "line-number match match-highlight help"
+  spin     "spinner title"
+  table    "border cell header selected"
+  log      "level time prefix message key value separator"
+  dialog   "title text frame accent button selection selection-focus mark input caret gauge header footer shadow"
+  msgbox   "title text frame accent button selection selection-focus mark input caret header footer shadow"
+  yesno    "title text frame accent button selection selection-focus mark input caret header footer shadow"
+  inputbox "title text frame accent button selection selection-focus mark input caret header footer shadow"
+  menu     "title text frame accent button selection selection-focus mark input caret header footer shadow"
+  checklist "title text frame accent button selection selection-focus mark input caret header footer shadow"
+  form     "title text frame accent button selection selection-focus mark input caret header footer shadow"
+  gauge    "title text frame accent button selection selection-focus mark input caret gauge header footer shadow"
+  infobox  "title text frame accent button selection selection-focus mark input caret header footer shadow"
+)
 
 _ZUI_CMD_GROUP[choose]=interactive
 _ZUI_CMD_GROUP[confirm]=interactive
@@ -82,7 +103,7 @@ _zui_help_banner() {
   local tag=" gum-style commands with a dialog(1) terminal UI."
   _zui_truncate "$tag" $inner
   print -r -- "$(_zui_c title "$v")$(_zui_c text "${(r:inner:: :)REPLY}")$(_zui_c title "$v")"
-  local meta=" 256 colours · tty-safe · zcurses"
+  local meta=" 8/16 colours · tty-safe · zcurses"
   _zui_truncate "$meta" $inner
   print -r -- "$(_zui_c title "$v")$(_zui_c dim "${(r:inner:: :)REPLY}")$(_zui_c title "$v")"
   print -r -- "$(_zui_c title "$bl$hline$br")"
@@ -144,7 +165,7 @@ _zui_help_options() { # cmd width
   for def in "${defs[@]}"; do
     IFS='|' read -r short long type desc defval <<< "$def"
     _zui_opt_left "$short" "$long" "$type"; left=$REPLY
-    if [[ $type != flag && -n $defval && $defval != 0 ]]; then
+    if [[ -n $defval && $defval != 0 ]]; then
       desc+=" (default: $defval)"
     fi
     _zui_help_row "$left" "$desc" $w
@@ -161,6 +182,23 @@ _zui_help_globals() {
   _zui_help_row "--no-color" "Disable colour (also honours NO_COLOR)." $w
   _zui_help_row "--ascii" "ASCII borders and glyphs instead of Unicode." $w
   _zui_help_row "--debug" "Write debug information to stderr." $w
+}
+
+_zui_help_styles() { # cmd width
+  local cmd=$1 w=$2
+  local data=${_ZUI_CMD_STYLES[$cmd]:-}
+  [[ -z $data ]] && return 0
+  _zui_h2 "STYLE OPTIONS"
+  local part m=0 name
+  for part in ${=data}; do
+    name="--$part.foreground"
+    (( ${#name} > m )) && m=${#name}
+  done
+  typeset -g _ZUI_ROWMAX=$m
+  for part in ${=data}; do
+    _zui_help_row "--$part.foreground" "Foreground colour for $part." $w
+    _zui_help_row "--$part.background" "Background colour for $part." $w
+  done
 }
 
 _zui_help_keys() { # cmd width
@@ -215,13 +253,14 @@ _zui_help_cmd() { # cmd
   [[ -n $long ]] && printf '\n  %s\n' "$long"
 
   _zui_help_options "$cmd" $w
+  _zui_help_styles "$cmd" $w
   _zui_help_keys "$cmd" $w
   _zui_help_examples "$cmd" $w
   _zui_help_notes "$cmd"
 
   print
   printf '  %s\n' "$(_zui_c dim 'Global: --theme NAME  --no-color  --ascii  --debug')"
-  printf '%s\n' "$(_zui_c dim "Run 'zui help' for all commands, or 'zui help <command>' for another page.")"
+  printf '%s\n' "$(_zui_c dim "Run 'zui help' for all commands, or 'zui <command> --help' for another page.")"
   print
 }
 
@@ -239,6 +278,7 @@ _zui_help_main() {
   _zui_h2 "USAGE"
   printf '  %s\n' "$(_zui_c cmd 'zui <command> [flags] [arguments...]')"
   printf '  %s\n' "$(_zui_c dim 'zui <command> --help')"
+  printf '  %s\n' "$(_zui_c dim 'zui help <command>')"
 
   local g cmd
   for g in "${_ZUI_GROUPS[@]}"; do

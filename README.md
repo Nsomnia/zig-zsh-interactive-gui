@@ -43,8 +43,9 @@ buttons bound to actions**, and results stay pipeable: the UI is drawn on
   the UI needs a terminal.
 - **Honest colour.** Auto-detects 256/16 colours, supports 256-colour palettes,
   degrades to attributes-only `mono`, and offers `--ascii` for terminals without
-  UTF-8.
-- **Tested.** 54 unit assertions and 26 pseudo-terminal integration tests drive
+  UTF-8. Help text deliberately uses the portable 8/16-colour ANSI set plus
+  bold/underline/dim so it survives every tty.
+- **Tested.** 68 unit assertions and 30 pseudo-terminal integration tests drive
   the real UI with `zsh/zpty`.
 
 The repository name is historical; the command is `zui` (zsh interface).
@@ -106,8 +107,9 @@ zui confirm --show-output "Deploy to production?" && ./deploy.sh
 zui style --border rounded --padding 1,3 --foreground 212 --bold "RELEASE 2.0"
 ```
 
-Run `zui help` for the colour help screen or `zui help <command>` for full,
-generated flag documentation, keys, examples and notes.
+Run `zui --help` for the command overview, or `zui <command> --help`
+(equivalently `zui help <command>`) for every option, key binding, example and
+note for that command. Help is generated from the live option definitions.
 
 ## Commands
 
@@ -120,8 +122,8 @@ generated flag documentation, keys, examples and notes.
 | `input` | Single-line editor with masking, limits and a block caret. |
 | `write` | Multi-line editor with optional line numbers. |
 | `filter` | Always-visible fuzzy filter over a list. |
-| `file` | Browse directories; selects files and/or directories. |
-| `pager` | Scroll text or a file; prints unchanged when piped. |
+| `file` | Browse directories; optional permissions and sizes. |
+| `pager` | Scroll text with optional soft wrap; prints unchanged when piped. |
 | `spin` | Framed spinner around a background command. |
 
 ### Presentation
@@ -129,9 +131,9 @@ generated flag documentation, keys, examples and notes.
 | Command | Purpose |
 |---|---|
 | `style` | Borders, padding, margins, alignment, ANSI colour. |
-| `format` | Replace `{{.Fields}}` in a template. |
+| `format` | Templates, Markdown, emoji aliases and code passthrough. |
 | `join` | Join blocks horizontally or vertically. |
-| `table` | Parse CSV and print an aligned bordered table. |
+| `table` | Parse CSV; pick a row interactively or `--print` a table. |
 | `log` | Levelled text, logfmt or JSON logging. |
 
 ### Dialogs
@@ -155,6 +157,22 @@ generated flag documentation, keys, examples and notes.
 | `help [command]` | Colourful help with options, keys and examples. |
 | `version` | Version string. |
 | `completion zsh\|bash` | Shell completion script. |
+
+### Gum and dialog(1) parity
+
+The interactive commands accept the gum behaviour flags you expect: list
+prefixes, `--input-delimiter` / `--output-delimiter`, `--label-delimiter`,
+`--strip-ansi`, fuzzy controls, `--soft-wrap`, `--permissions` / `--size`,
+`--formatter` / `--structured` and table `--lazy-quotes`,
+`--fields-per-record` and `--return-column`. The dialog family also accepts the
+practical `dialog(1)` common options (`--ok-label`, `--cancel-label`,
+`--extra-button`, `--help-button`, `--no-cancel`, `--defaultno`,
+`--default-item`, `--backtitle`, `--no-shadow`, `--quoted`, `--output-fd`, …).
+
+Every per-part colour can be overridden with `--<part>.foreground` and
+`--<part>.background`; the available parts are listed by
+`zui <command> --help`. See [docs/DIALOGS.md](docs/DIALOGS.md) and
+[docs/THEMES.md](docs/THEMES.md).
 
 ## Dialog buttons and actions
 

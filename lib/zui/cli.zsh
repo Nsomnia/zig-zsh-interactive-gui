@@ -39,7 +39,7 @@ _zui_emit() {
   (( _ZUI_EMIT )) && print -r -- "$1"
 }
 
-# Parse options for <cmd>.  Returns 90 when help/version was requested.
+# Parse options for <cmd>.  Returns 90 for help, 91 for version.
 _zui_parse() {
   emulate -L zsh
   local cmd=$1; shift
@@ -68,7 +68,7 @@ _zui_parse() {
       (--)
         _ZUI_ARGS+=("$@"); break ;;
       (--help|-h) return 90 ;;
-      (--version|-v) zui::version; return 90 ;;
+      (--version|-v) zui::version; return 91 ;;
       (--no-color) ZUI_NO_COLOR=1 ;;
       (--ascii) ZUI_ASCII=1 ;;
       (--debug) ZUI_DEBUG=1 ;;
@@ -79,6 +79,11 @@ _zui_parse() {
       (--*)
         name=${arg#--}; val=""; hasval=0
         if [[ $name == *=* ]]; then val=${name#*=}; name=${name%%=*}; hasval=1; fi
+        # gum-style per-part colours: --cursor.foreground, --item.background, ...
+        if (( ! ${+_ZUI_TYPES[$name]} )) && [[ $name == *.* ]] \
+           && (( ${+_ZUI_STYLE_MAP[${name%%.*}]} )); then
+          _ZUI_TYPES[$name]=str
+        fi
         if (( ! ${+_ZUI_TYPES[$name]} )); then
           _zui_usage_error "$cmd" "unknown option '--$name'"
         fi
@@ -165,8 +170,14 @@ _zui_main() {
   if [[ -z $cmd || $cmd == help ]]; then
     _zui_help "${1-}"; return $?
   fi
-  if [[ $cmd == version ]]; then zui::version; return 0; fi
+  if [[ $cmd == version ]]; then
+    if [[ ${1-} == (--help|-h) ]]; then _zui_help version; else zui::version; fi
+    return 0
+  fi
   if [[ $cmd == completion ]]; then _zui_cmd_completion "$@"; return $?; fi
+  if [[ ${1-} == help ]] && (( ${+functions[_zui_cmd_$cmd]} )); then
+    _zui_help "$cmd"; return $?
+  fi
   if (( ! ${+functions[_zui_cmd_$cmd]} )); then
     print -ru2 -- "zui: unknown command '$cmd'"
     print -ru2 -- "Run 'zui help' for a list of commands."
@@ -175,7 +186,8 @@ _zui_main() {
 
   _zui_parse "$cmd" "$@"
   local rc=$?
-  (( rc == 90 )) && return 0
+  (( rc == 90 )) && { _zui_help "$cmd"; return 0; }
+  (( rc == 91 )) && return 0
   (( rc != 0 )) && return $rc
   _zui_cmd_$cmd
   return $?

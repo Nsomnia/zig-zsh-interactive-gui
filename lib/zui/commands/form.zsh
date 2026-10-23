@@ -11,6 +11,7 @@ _ZUI_OPTDEF_form=(
   '|height|int|Dialog height in rows (0 = automatic)|0'
   '|default-button|int|Button triggered by Enter|1'
   '|border|str|Border: auto, rounded, sharp, double, thick, ascii, none|auto'
+  "${_ZUI_DIALOGDEF[@]}"
 )
 
 _ZUI_CMD_DESC[form]="Fill several labelled fields, then confirm with a button."
@@ -53,6 +54,15 @@ _zui_cmd_form() {
   done
 
   _zui_form_focus=1; _zui_form_scroll=0
+  _zui_form_limit=${_ZUI_OPT[max-input]:-0}
+  [[ $_zui_form_limit == <-> ]] || _zui_form_limit=0
+  local focus=${_ZUI_OPT[default-item]:-}
+  if [[ -n $focus ]]; then
+    local fi
+    for (( fi = 1; fi <= ${#_zui_form_labels}; fi++ )); do
+      [[ ${_zui_form_labels[fi]} == "$focus" ]] && { _zui_form_focus=$fi; break; }
+    done
+  fi
   _zui_form_load
 
   _zui_dlg[widget]=form
@@ -63,6 +73,6 @@ _zui_cmd_form() {
 
   _zui_dialog_run
   local rc=$?
-  _zui_emit "$_ZUI_OUT"
+  _zui_emit_out "$_ZUI_OUT"
   return $rc
 }

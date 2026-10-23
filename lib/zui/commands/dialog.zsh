@@ -29,6 +29,7 @@ _ZUI_OPTDEF_dialog=(
   '|default-answer|str|Default answer for yesno: yes or no|yes'
   '|show-output|flag|Print true/false for yesno|0'
   '|print|flag|Print a gauge instead of opening a dialog|0'
+  "${_ZUI_DIALOGDEF[@]}"
 )
 
 _ZUI_CMD_DESC[dialog]="Open any dialog type from one flag-driven command."
@@ -100,6 +101,16 @@ _zui_cmd_dialog() {
     local s
     for s in "${(@f)_ZUI_OPT[selected]}"; do a+=(--selected "$s"); done
   fi
+
+  # Forward every dialog(1)-common option that differs from its default.
+  local d k val
+  for d in "${_ZUI_DIALOGDEF[@]}"; do
+    IFS='|' read -r _ k _ <<< "$d"
+    [[ -n $k ]] || continue
+    val=${_ZUI_OPT[$k]:-}
+    [[ -n $val && $val != ${_ZUI_DEFAULTS[$k]:-} ]] || continue
+    if [[ ${_ZUI_TYPES[$k]} == flag ]]; then a+=(--$k); else a+=(--$k "$val"); fi
+  done
 
   _zui_main "$type" "${a[@]}" "${_ZUI_ARGS[@]}"
 }

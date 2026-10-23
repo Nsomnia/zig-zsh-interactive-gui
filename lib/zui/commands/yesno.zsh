@@ -10,6 +10,7 @@ _ZUI_OPTDEF_yesno=(
   '|timeout|str|Close with exit 124 after a duration|'
   '|width|int|Dialog width in columns (0 = automatic)|0'
   '|border|str|Border: auto, rounded, sharp, double, thick, ascii, none|auto'
+  "${_ZUI_DIALOGDEF[@]}"
 )
 
 _ZUI_CMD_DESC[yesno]="A modal yes/no dialog with named affirmative and negative buttons."
@@ -30,16 +31,24 @@ _zui_cmd_yesno() {
   _zui_dlg[icon]=question
   _zui_dialog_common
   _zui_dlg[title]=${_ZUI_OPT[title]:-Question}
-  _zui_dlg_buttons=("${_ZUI_OPT[affirmative]:-Yes}=exit:0" "${_ZUI_OPT[negative]:-No}=exit:1")
+  local yes=${_ZUI_OPT[affirmative]:-Yes} no=${_ZUI_OPT[negative]:-No}
+  [[ -n ${_ZUI_OPT[ok-label]:-} ]] && yes=${_ZUI_OPT[ok-label]}
+  [[ -n ${_ZUI_OPT[cancel-label]:-} ]] && no=${_ZUI_OPT[cancel-label]}
+  [[ -n ${_ZUI_OPT[yes-label]:-} ]] && yes=${_ZUI_OPT[yes-label]}
+  [[ -n ${_ZUI_OPT[no-label]:-} ]] && no=${_ZUI_OPT[no-label]}
+  _zui_dlg_buttons=("$yes=exit:0")
+  (( ${_ZUI_OPT[no-cancel]:-0} )) || _zui_dlg_buttons+=("$no=exit:1")
   case ${(L)${_ZUI_OPT[default-answer]:-yes}} in
     (no|n|false|0) _zui_dlg[default]=2 ;;
     (*)            _zui_dlg[default]=1 ;;
   esac
+  (( ${_ZUI_OPT[defaultno]:-0} )) && _zui_dlg[default]=2
 
   _zui_dialog_run
   local rc=$?
   if (( ${_ZUI_OPT[show-output]:-0} )) && [[ -n $_ZUI_ACTION ]]; then
-    if (( rc == 0 )); then print -r -- true; else print -r -- false; fi
+    _ZUI_EMIT=1
+    if (( rc == 0 )); then _zui_emit_out true; else _zui_emit_out false; fi
   fi
   return $rc
 }

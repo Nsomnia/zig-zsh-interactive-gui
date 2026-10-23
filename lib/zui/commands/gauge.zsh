@@ -9,6 +9,7 @@ _ZUI_OPTDEF_gauge=(
   '|timeout|str|Close after a duration|'
   '|print|flag|Print the gauge to stdout instead of opening a dialog|0'
   '|border|str|Border: auto, rounded, sharp, double, thick, ascii, none|auto'
+  "${_ZUI_DIALOGDEF[@]}"
 )
 
 _ZUI_CMD_DESC[gauge]="Display a progress gauge, interactively or as plain output."

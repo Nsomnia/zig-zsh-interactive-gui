@@ -3,7 +3,9 @@
 `zui` has three rendering surfaces:
 
 1. **zcurses dialogs** — use semantic styles from a palette.
-2. **Help and `style`** — emit ANSI escape sequences directly.
+2. **Help and `style`** — emit ANSI escape sequences directly. Help deliberately
+   uses only the portable 8/16-colour SGR set plus bold, underline and dim, so it
+   is readable on every tty. A 256-colour help option is on the roadmap.
 3. **Plain output** — no escapes when piped or when colour is disabled.
 
 ## Profiles
@@ -41,6 +43,21 @@ Semantic styles are defined per palette: `screen`, `frame`, `title`, `text`,
 `muted`, `accent`, `input`, `input_focus`, `caret`, `button`, `button_focus`,
 `selection`, `selection_focus`, `shadow`, `header`, `footer`, `success`, `warn`,
 `danger`, `gauge`, `gauge_ok`, `icon`, `mark`, `scroll`.
+
+## Per-part style flags
+
+Interactive commands accept gum-style colour overrides. Each part has a
+`--<part>.foreground` and `--<part>.background` variant:
+
+```sh
+zui choose --cursor.foreground 212 --header.foreground 99 one two
+zui input --prompt.foreground 114 --placeholder.foreground 240
+zui msgbox --title.foreground 81 --border.foreground 240 "Styled"
+```
+
+The available parts per command are printed under `STYLE OPTIONS` in
+`zui <command> --help` and generated into [COMMANDS.md](COMMANDS.md). Hex values
+are mapped to the nearest xterm-256 index for curses.
 
 ## Borders
 

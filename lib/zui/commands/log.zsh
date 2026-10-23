@@ -1,12 +1,14 @@
 # zui log
 
 _ZUI_OPTDEF_log=(
-  '|level|str|Message level: debug, info, warn, error, fatal|info'
+  'l|level|str|Message level: debug, info, warn, error, fatal|info'
   '|min-level|str|Suppress messages below this level|debug'
   '|prefix|str|Prefix placed before the level|'
-  '|time|str|Timestamp format (strftime) or rfc3339|'
-  '|file|str|Append the log line to a file instead of stdout|'
-  '|format|str|Output format: text, logfmt or json|text'
+  't|time|str|Timestamp format (strftime) or rfc3339|'
+  'o|file|str|Append the log line to a file instead of stdout|'
+  '|format|str|Output format: text, logfmt or json (alias for --formatter)|text'
+  '|formatter|str|Output formatter: text, logfmt or json|'
+  's|structured|flag|Use logfmt structured output|0'
 )
 
 _ZUI_CMD_DESC[log]="Emit a levelled, optionally structured log line."
@@ -73,7 +75,8 @@ _zui_cmd_log() {
     fi
   fi
 
-  local format=${(L)${_ZUI_OPT[format]:-text}}
+  local format=${(L)${_ZUI_OPT[formatter]:-${_ZUI_OPT[format]:-text}}}
+  (( ${_ZUI_OPT[structured]:-0} )) && format=logfmt
   local out=""
   local kv k v
   case $format in
@@ -110,13 +113,14 @@ _zui_cmd_log() {
           (fatal) color=$(_zui_sgr 231 160 bold) ;;
         esac
       fi
-      [[ -n $stamp ]] && out+="$(_zui_sgr 244 - 2>/dev/null)$stamp$reset "
-      [[ -n $prefix ]] && out+="$(_zui_sgr 213 -)$prefix$reset "
+      [[ -n ${_ZUI_OPT[level.foreground]:-} ]] && color=$(_zui_sgr "${_ZUI_OPT[level.foreground]}" - bold)
+      [[ -n $stamp ]] && out+="$(_zui_sgr "${_ZUI_OPT[time.foreground]:-244}" -)$stamp$reset "
+      [[ -n $prefix ]] && out+="$(_zui_sgr "${_ZUI_OPT[prefix.foreground]:-213}" -)$prefix$reset "
       out+="${color}${(U)level}${reset}"
-      [[ -n $msg ]] && out+=" $msg"
+      [[ -n $msg ]] && out+=" $(_zui_sgr "${_ZUI_OPT[message.foreground]:-}" -)$msg$reset"
       for kv in "${fields[@]}"; do
         k=${kv%%=*}; v=${kv#*=}
-        out+=" $(_zui_sgr 244 -)$k=$reset$v"
+        out+=" $(_zui_sgr "${_ZUI_OPT[key.foreground]:-244}" -)$k=$reset$(_zui_sgr "${_ZUI_OPT[value.foreground]:-}" -)$v$reset"
       done ;;
   esac
 

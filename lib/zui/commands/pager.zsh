@@ -2,11 +2,17 @@
 
 _ZUI_OPTDEF_pager=(
   '|line-numbers|flag|Show line numbers|0'
+  '|show-line-numbers|flag|Show line numbers (alias)|0'
+  '|soft-wrap|flag|Wrap long lines at the window width|1'
+  '|no-soft-wrap|flag|Truncate long lines instead of wrapping|0'
   '|header|str|Title shown in the dialog title bar|'
   '|height|int|Window height in rows (0 = fit the terminal)|0'
   '|width|int|Dialog width in columns (0 = automatic)|0'
+  '|foreground|str|Text foreground colour|'
+  '|background|str|Text background colour|'
   '|timeout|str|Close with exit 124 after a duration|'
   '|border|str|Border: auto, rounded, sharp, double, thick, ascii, none|auto'
+  "${_ZUI_DIALOGDEF[@]}"
 )
 
 _ZUI_CMD_DESC[pager]="Scroll through text or a file in a framed window."
@@ -34,7 +40,7 @@ _zui_cmd_pager() {
     return 0
   fi
 
-  if (( ${_ZUI_OPT[line-numbers]:-0} )); then
+  if (( ${_ZUI_OPT[line-numbers]:-0} || ${_ZUI_OPT[show-line-numbers]:-0} )); then
     local -a lines
     lines=("${(@f)content}")
     local i w=${#${#lines}}
@@ -52,6 +58,7 @@ _zui_cmd_pager() {
   _zui_dlg[esc_code]=0
   _zui_dlg[hints]="↑↓ scroll  PgUp/PgDn  q quit"
   _zui_dialog_common
+  _zui_dlg[nowrap]=$(( ${_ZUI_OPT[no-soft-wrap]:-0} || ! ${_ZUI_OPT[soft-wrap]:-1} ))
   _zui_dlg[message]=$content
   _zui_dlg[title]=${_ZUI_OPT[header]:-${file:t}}
   [[ -z ${_zui_dlg[title]} ]] && _zui_dlg[title]=Pager
@@ -60,6 +67,8 @@ _zui_cmd_pager() {
   (( h > 0 && h > ZUI_ROWS - 4 )) && h=$(( ZUI_ROWS - 4 ))
   _zui_dlg[height]=$h
   _zui_dlg_buttons=()
+  [[ -n ${_ZUI_OPT[foreground]:-} ]] && _ZUI_OPT[text.foreground]=${_ZUI_OPT[foreground]}
+  [[ -n ${_ZUI_OPT[background]:-} ]] && _ZUI_OPT[text.background]=${_ZUI_OPT[background]}
   _zui_dialog_run
   return $?
 }

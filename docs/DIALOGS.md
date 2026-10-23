@@ -37,6 +37,33 @@ zui msgbox --message "Deploy?" \
 - A label without `=` closes with its zero-based index (`exit:0`, `exit:1`, …).
 - No buttons is valid (`infobox`, `gauge`, pager): any key dismisses.
 
+## dialog(1)-compatible options
+
+Beyond `--button`, the dialog family accepts the practical `dialog(1)` common
+options:
+
+| Option | Effect |
+|---|---|
+| `--ok-label`, `--exit-label`, `--cancel-label` | Rename the accept/cancel buttons. |
+| `--yes-label`, `--no-label` | Aliases for affirmative/negative labels on yes/no dialogs. |
+| `--extra-button`, `--extra-label` | Add an extra button that exits 0. |
+| `--help-button`, `--help-label` | Add a Help button that exits 0. |
+| `--no-ok`, `--no-cancel` | Hide a button and (for cancel) ignore Esc. |
+| `--defaultno`, `--default-item` | Focus the negative button, or a named item/field. |
+| `--backtitle`, `--hline` | Replace or extend the bottom hint line. |
+| `--no-shadow`, `--ascii-lines` | Drop the shadow or force ASCII borders. |
+| `--max-input`, `--insecure` | Limit input length or mask it. |
+| `--output-fd`, `--stderr`, `--stdout` | Choose where the result is written. |
+| `--output-separator`, `--separate-output` | Control multi-value output. |
+| `--quoted`, `--single-quoted` | Wrap each output value in quotes. |
+| `--show-help`, `--no-show-help` | Show or hide the hint footer. |
+| `--sleep`, `--beep`, `--beep-after` | Hold the final frame, or ring the bell. |
+
+`--colors`, `--clear`, `--no-mouse`, `--item-help` and `--no-items` are accepted
+for script compatibility. Style flags such as `--title.foreground`,
+`--button.background` and `--selection-focus.foreground` are listed by
+`zui <command> --help`.
+
 ## Actions
 
 | Action | Behaviour | Output |

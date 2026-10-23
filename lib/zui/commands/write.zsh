@@ -8,10 +8,16 @@ _ZUI_OPTDEF_write=(
   '|show-line-numbers|flag|Show a line-number gutter|0'
   '|height|int|Text area height in rows|8'
   '|width|int|Dialog width in columns (0 = automatic)|0'
+  '|prompt|str|Prefix drawn at the start of every line|'
+  '|show-cursor-line|flag|Highlight the line containing the caret|0'
+  '|max-lines|int|Maximum number of lines (0 = unlimited)|0'
+  '|cursor.mode|str|Caret mode: blink, static or hide|blink'
+  '|strip-ansi|flag|Remove ANSI escapes from the initial value|0'
   '|timeout|str|Close with exit 124 after a duration|'
   '|border|str|Border: auto, rounded, sharp, double, thick, ascii, none|auto'
+  "${_ZUI_DIALOGDEF[@]}"
+  "${_ZUI_PADDINGDEF[@]}"
 )
-
 _ZUI_CMD_DESC[write]="Compose multi-line text in a scrollable text area."
 _ZUI_CMD_USAGE[write]="zui write [flags]"
 _ZUI_CMD_LONG[write]="A multi-line editor with wrapping-free horizontal scrolling, line numbers and an optional character limit. Ctrl-D or the Done button submits, Esc cancels."
@@ -22,11 +28,18 @@ _ZUI_NOTES[write]=$'For scripted newlines in --value use a literal $\\n in zsh: 
 _zui_cmd_write() {
   _zui_dialog_reset
   local limit=${_ZUI_OPT[char-limit]:-0}
+  (( ${_ZUI_OPT[max-input]:-0} > 0 )) && limit=${_ZUI_OPT[max-input]}
   [[ $limit == <-> ]] || limit=0
   local val=${_ZUI_OPT[value]:-}
   val=${val//\\n/$'\n'}
+  (( ${_ZUI_OPT[strip-ansi]:-0} )) && { _zui_strip_ansi "$val"; val=$REPLY; }
   _zui_ta_reset "$val" $limit
   _zui_ta_placeholder=${_ZUI_OPT[placeholder]:-}
+  _zui_ta_prompt=${_ZUI_OPT[prompt]:-}
+  _zui_ta_cursor_mode=${_ZUI_OPT[cursor.mode]:-blink}
+  _zui_ta_highlight=${_ZUI_OPT[show-cursor-line]:-0}
+  _zui_ta_max_lines=${_ZUI_OPT[max-lines]:-0}
+  [[ $_zui_ta_max_lines == <-> ]] || _zui_ta_max_lines=0
   _zui_ta_numbers=${_ZUI_OPT[show-line-numbers]:-0}
 
   _zui_dlg[widget]=textarea
@@ -41,6 +54,6 @@ _zui_cmd_write() {
 
   _zui_dialog_run
   local rc=$?
-  _zui_emit "$_ZUI_OUT"
+  _zui_emit_out "$_ZUI_OUT"
   return $rc
 }

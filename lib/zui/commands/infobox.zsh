@@ -8,6 +8,7 @@ _ZUI_OPTDEF_infobox=(
   '|width|int|Dialog width in columns (0 = automatic)|0'
   '|height|int|Dialog height in rows (0 = automatic)|0'
   '|border|str|Border: auto, rounded, sharp, double, thick, ascii, none|auto'
+  "${_ZUI_DIALOGDEF[@]}"
 )
 
 _ZUI_CMD_DESC[infobox]="Show a message with no buttons; any key or a timeout dismisses it."

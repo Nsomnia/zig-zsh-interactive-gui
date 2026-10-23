@@ -8,10 +8,13 @@ _ZUI_OPTDEF_input=(
   '|char-limit|int|Maximum number of characters (0 = unlimited)|0'
   '|header|str|Title shown in the dialog title bar|Input'
   '|width|int|Dialog width in columns (0 = automatic)|0'
+  '|cursor.mode|str|Caret mode: blink, static or hide|blink'
+  '|strip-ansi|flag|Remove ANSI escapes from the initial value|0'
   '|timeout|str|Close with exit 124 after a duration|'
   '|border|str|Border: auto, rounded, sharp, double, thick, ascii, none|auto'
+  "${_ZUI_DIALOGDEF[@]}"
+  "${_ZUI_PADDINGDEF[@]}"
 )
-
 _ZUI_CMD_DESC[input]="Read a single line of text in a framed input dialog."
 _ZUI_CMD_USAGE[input]="zui input [flags]"
 _ZUI_CMD_LONG[input]="A single-line editor with a block caret, horizontal scrolling, Home/End, word movement and optional password masking. Enter confirms, Esc cancels."
@@ -22,9 +25,14 @@ _ZUI_NOTES[input]=$'The value is printed on stdout after the UI is restored, so 
 _zui_cmd_input() {
   _zui_dialog_reset
   local limit=${_ZUI_OPT[char-limit]:-0}
+  (( ${_ZUI_OPT[max-input]:-0} > 0 )) && limit=${_ZUI_OPT[max-input]}
   [[ $limit == <-> ]] || limit=0
-  _zui_ed_reset "${_ZUI_OPT[value]:-}" $limit
+  local val=${_ZUI_OPT[value]:-}
+  (( ${_ZUI_OPT[strip-ansi]:-0} )) && { _zui_strip_ansi "$val"; val=$REPLY; }
+  _zui_ed_reset "$val" $limit
   _zui_ed_mask=${_ZUI_OPT[password]:-0}
+  (( ${_ZUI_OPT[insecure]:-0} )) && _zui_ed_mask=1
+  _zui_ed_cursor_mode=${_ZUI_OPT[cursor.mode]:-blink}
   _zui_ed_placeholder=${_ZUI_OPT[placeholder]:-}
 
   _zui_dlg[widget]=input
@@ -36,6 +44,6 @@ _zui_cmd_input() {
 
   _zui_dialog_run
   local rc=$?
-  _zui_emit "$_ZUI_OUT"
+  _zui_emit_out "$_ZUI_OUT"
   return $rc
 }

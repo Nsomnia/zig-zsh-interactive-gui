@@ -25,6 +25,11 @@ _zui_dialog_reset() {
   _zui_dlg[list_h]=8
   _zui_dlg[ta_h]=8
   _zui_dlg[no_cancel]=0
+  _zui_dlg[no_shadow]=0
+  _zui_dlg[no_hints]=0
+  _zui_dlg[nowrap]=0
+  _zui_dlg[backtitle]=""
+  _zui_dlg[hline]=""
   _zui_dlg[esc_code]=1
   _zui_dlg[key_hook]=""
   _zui_dlg[hints]=""
@@ -112,6 +117,8 @@ _zui_dialog_draw() {
   emulate -L zsh
   local rows=$ZUI_ROWS cols=$ZUI_COLS
   local w=${_zui_dlg[width]} h=${_zui_dlg[height]}
+  local pad_t=${_zui_dlg[pad_t]:-0} pad_r=${_zui_dlg[pad_r]:-0}
+  local pad_b=${_zui_dlg[pad_b]:-0} pad_l=${_zui_dlg[pad_l]:-0}
   if (( w <= 0 )); then
     case ${_zui_dlg[widget]} in
       (list|checklist|form) w=72 ;;
@@ -125,6 +132,7 @@ _zui_dialog_draw() {
   if (( h <= 0 )); then
     _zui_dialog_autoheight $w; h=$REPLY
   fi
+  h=$(( h + pad_t + pad_b ))
   (( h > rows - 2 )) && h=$(( rows - 2 ))
   (( h < 6 )) && h=6
 
@@ -134,24 +142,25 @@ _zui_dialog_draw() {
   (( x < 0 )) && x=0
 
   _zui_clear
-  if [[ $_ZUI_BORDER != none ]]; then
+  if [[ $_ZUI_BORDER != none ]] && (( ! ${_zui_dlg[no_shadow]:-0} )); then
     _zui_fill $(( y + 1 )) $(( x + 2 )) $h $w ' ' "${_ZUI_STYLE[shadow]}"
   fi
   local title=${_zui_dlg[title]}
   _zui_frame $y $x $h $w "$title" "${_ZUI_STYLE[title]}" "${_ZUI_STYLE[frame]}"
 
-  local cw=$(( w - 4 ))
+  local cw=$(( w - 4 - pad_l - pad_r ))
+  (( cw < 1 )) && cw=1
   local btn_h=0
   if (( ${#_zui_dlg_buttons} )); then
     _zui_btn_layout $cw
     btn_h=$_zui_btn_height
   fi
-  local btn_y=$(( y + h - 1 - btn_h ))
-  local content_y=$(( y + 2 ))
+  local btn_y=$(( y + h - 1 - btn_h - pad_b ))
+  local content_y=$(( y + 2 + pad_t ))
   local content_h=$(( btn_y - content_y - (btn_h ? 1 : 0) ))
   (( content_h < 1 )) && content_h=1
 
-  local mx=$(( x + 2 )) mw=$cw
+  local mx=$(( x + 2 + pad_l )) mw=$cw
   local icon=${_zui_dlg[icon]}
   if [[ -n $icon && -n ${_zui_dlg[message]} ]]; then
     _zui_icon "$icon"
@@ -161,7 +170,12 @@ _zui_dialog_draw() {
 
   local msg_h=0
   if [[ -n ${_zui_dlg[message]} ]]; then
-    _zui_wrap "${_zui_dlg[message]}" "$mw"
+    if (( ${_zui_dlg[nowrap]:-0} )); then
+      typeset -ga _ZUI_LINES
+      _ZUI_LINES=("${(@f)_zui_dlg[message]}")
+    else
+      _zui_wrap "${_zui_dlg[message]}" "$mw"
+    fi
     _zui_dlg_msg_len=${#_ZUI_LINES}
     _zui_dlg_maxscroll=$(( _zui_dlg_msg_len - content_h ))
     (( _zui_dlg_maxscroll < 0 )) && _zui_dlg_maxscroll=0
@@ -197,35 +211,40 @@ _zui_dialog_draw() {
   case ${_zui_dlg[widget]} in
     (text) ;;
     (input)
-      local prompt=${_zui_dlg[prompt]} ix=$(( x + 2 )) iw=$cw
+      local prompt=${_zui_dlg[prompt]} ix=$(( x + 2 + pad_l )) iw=$cw
       if [[ -n $prompt ]]; then
         local ptxt="$prompt "
         _zui_put $wy $ix "$ptxt" "${_ZUI_STYLE[accent]}"
         ix=$(( ix + ${#ptxt} )); iw=$(( iw - ${#ptxt} ))
-        (( iw < 5 )) && { ix=$(( x + 2 )); iw=$cw; }
+        (( iw < 5 )) && { ix=$(( x + 2 + pad_l )); iw=$cw; }
       fi
       _zui_ed_draw $wy $ix $iw $(( _zui_dlg_area == 0 )) ;;
     (textarea)
       local th=$(( content_h - msg_h - (msg_h ? 1 : 0) ))
       (( th < 1 )) && th=1
-      _zui_ta_draw $wy $(( x + 2 )) $cw $th $(( _zui_dlg_area == 0 )) ;;
+      _zui_ta_draw $wy $(( x + 2 + pad_l )) $cw $th $(( _zui_dlg_area == 0 )) ;;
     (list|checklist)
       local lh=$(( content_h - msg_h - (msg_h ? 1 : 0) ))
       (( lh < 1 )) && lh=1
-      _zui_list_draw $wy $(( x + 2 )) $cw $lh ;;
+      _zui_list_draw $wy $(( x + 2 + pad_l )) $cw $lh ;;
     (form)
-      _zui_form_draw $wy $(( x + 2 )) $cw \
+      _zui_form_draw $wy $(( x + 2 + pad_l )) $cw \
         $(( content_h - msg_h - (msg_h ? 1 : 0) )) $(( _zui_dlg_area == 0 )) ;;
     (gauge)
-      _zui_gauge_draw $wy $(( x + 2 )) $cw "${_zui_dlg[percent]:-0}" "${_zui_dlg[label]:-}" ;;
+      _zui_gauge_draw $wy $(( x + 2 + pad_l )) $cw "${_zui_dlg[percent]:-0}" "${_zui_dlg[label]:-}" ;;
   esac
 
   if (( btn_h )); then
-    _zui_btn_draw $btn_y $(( x + 2 )) $cw $(( _zui_dlg_area ? _zui_dlg_focus : 0 ))
+    _zui_btn_draw $btn_y $(( x + 2 + pad_l )) $cw $(( _zui_dlg_area ? _zui_dlg_focus : 0 ))
   fi
 
-  local hints=${_zui_dlg[hints]}
-  [[ -z $hints ]] && { _zui_dialog_hints; hints=$REPLY; }
+  local hints=${_zui_dlg[hline]:-${_zui_dlg[hints]}}
+  if [[ -z $hints ]] && (( ! ${_zui_dlg[no_hints]:-0} )); then
+    _zui_dialog_hints; hints=$REPLY
+  fi
+  if [[ -n ${_zui_dlg[backtitle]} ]]; then
+    hints="${hints:+$hints  ·  }${_zui_dlg[backtitle]}"
+  fi
   if [[ -n $hints ]] && (( y + h < rows )); then
     _zui_truncate "$hints" $(( cols - 2 ))
     _zui_center $(( y + h )) 0 $cols "$REPLY" "${_ZUI_STYLE[footer]}"
@@ -386,7 +405,12 @@ _zui_dialog_key() { # returns 0 continue, 1 handled
     (list|checklist)
       case $KEY in
         (ENTER)
-          if (( ${#_zui_list_view} == 0 )); then return 0; fi
+          if (( ${#_zui_list_view} == 0 )); then
+            if (( ! _zui_list_strict )) && [[ -n $_zui_list_filter ]]; then
+              _ZUI_OUT=$_zui_list_filter; _ZUI_EMIT=1; _ZUI_CODE=0; _zui_dlg_done=1
+            fi
+            return 0
+          fi
           if (( n )); then _zui_dialog_activate $(_zui_dialog_default)
           else _zui_list_value; _ZUI_OUT=$REPLY; _ZUI_EMIT=1; _ZUI_CODE=0; _zui_dlg_done=1; fi ;;
         (*)
@@ -419,6 +443,7 @@ _zui_dialog_run() {
   _zui_border_set "${_zui_dlg[border]}"
 
   _zui_ui_begin
+  _zui_apply_style_opts
   # Initial focus: buttons for message-only/gauge, widget otherwise.
   case ${_zui_dlg[widget]} in
     (text|gauge) _zui_dlg_area=1 ;;
@@ -449,7 +474,12 @@ _zui_dialog_run() {
     _zui_dialog_key
   done
 
+  if [[ -n ${_ZUI_OPT[sleep]:-} ]]; then
+    local sl
+    if _zui_duration "${_ZUI_OPT[sleep]}"; then sl=$REPLY; (( sl > 0 )) && sleep $sl; fi
+  fi
   _zui_ui_end
+  (( ${_ZUI_OPT[beep]:-0} || ${_ZUI_OPT[beep-after]:-0} )) && print -n $'\a' >/dev/tty 2>/dev/null
   if [[ -n $_ZUI_RUN ]]; then
     eval "$_ZUI_RUN"
     _ZUI_CODE=$?

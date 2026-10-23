@@ -1,13 +1,14 @@
 # zui editor: single-line input and multi-line textarea.
 # Multi-byte characters count as one cell; see docs/LIMITATIONS.md.
 
-typeset -g  _zui_ed_value="" _zui_ed_placeholder=""
+typeset -g  _zui_ed_value="" _zui_ed_placeholder="" _zui_ed_cursor_mode="blink"
 typeset -gi _zui_ed_pos=1 _zui_ed_limit=0 _zui_ed_mask=0
 typeset -gi _zui_ed_caret_x=0 _zui_ed_hoff=0
 typeset -ga _zui_ta_lines=("")
 typeset -gi _zui_ta_row=1 _zui_ta_col=1 _zui_ta_limit=0 _zui_ta_scroll=0
 typeset -gi _zui_ta_numbers=0 _zui_ta_caret_y=0 _zui_ta_caret_x=0
-typeset -g  _zui_ta_placeholder=""
+typeset -g  _zui_ta_placeholder="" _zui_ta_prompt="" _zui_ta_cursor_mode="blink"
+typeset -gi _zui_ta_max_lines=0 _zui_ta_highlight=0
 
 _zui_ed_reset() {
   _zui_ed_value=$1
@@ -44,12 +45,12 @@ _zui_ed_draw() { # y x w focused
   if (( n == 0 )) && [[ -n $_zui_ed_placeholder ]]; then
     _zui_truncate " $_zui_ed_placeholder" "$w"
     _zui_put $y $x "$REPLY" "${_ZUI_STYLE[muted]}"
-    (( focus )) && _zui_put $y $x ' ' "${_ZUI_STYLE[caret]}"
+    (( focus )) && [[ $_zui_ed_cursor_mode != hide ]] && _zui_put $y $x ' ' "${_ZUI_STYLE[caret]}"
   else
     _zui_put $y $x "$vis" "${_ZUI_STYLE[input]}"
   fi
 
-  if (( focus )); then
+  if (( focus )) && [[ $_zui_ed_cursor_mode != hide ]]; then
     local cx=$(( _zui_ed_pos - 1 - off ))
     (( cx < 0 )) && cx=0
     (( cx > w - 1 )) && cx=$(( w - 1 ))
@@ -133,13 +134,14 @@ _zui_ta_len() {
 _zui_ta_draw() { # y x w h focused
   local y=$1 x=$2 w=$3 h=$4 focus=${5:-1}
   local tw=$w
-  local gutter=0 gcount
+  local gutter=0 gcount promptw=${#_zui_ta_prompt}
   if (( _zui_ta_numbers )); then
     printf -v gcount '%d' ${#_zui_ta_lines}
     gutter=${#gcount}
     (( gutter < 2 )) && gutter=2
     tw=$(( w - gutter - 1 ))
   fi
+  tw=$(( tw - promptw ))
   (( tw < 1 )) && tw=1
 
   # Keep the cursor row visible.
@@ -165,9 +167,15 @@ _zui_ta_draw() { # y x w h focused
       _zui_put $(( y + row )) $x "$REPLY" "${_ZUI_STYLE[muted]}"
       tx=$(( x + gutter + 1 ))
     fi
-    _zui_fill $(( y + row )) $tx 1 $tw ' ' "${_ZUI_STYLE[input]}"
-    _zui_put $(( y + row )) $tx "$vis" "${_ZUI_STYLE[input]}"
-    if (( focus && i == _zui_ta_row )); then
+    if [[ -n $_zui_ta_prompt ]]; then
+      _zui_put $(( y + row )) $tx "$_zui_ta_prompt" "${_ZUI_STYLE[muted]}"
+      tx=$(( tx + promptw ))
+    fi
+    local lstyle=${_ZUI_STYLE[input]}
+    (( _zui_ta_highlight && i == _zui_ta_row )) && lstyle=${_ZUI_STYLE[selection]}
+    _zui_fill $(( y + row )) $tx 1 $tw ' ' "$lstyle"
+    _zui_put $(( y + row )) $tx "$vis" "$lstyle"
+    if (( focus && i == _zui_ta_row )) && [[ $_zui_ta_cursor_mode != hide ]]; then
       cx=$(( _zui_ta_col - 1 - hoff ))
       (( cx < 0 )) && cx=0
       (( cx > tw - 1 )) && cx=$(( tw - 1 ))
@@ -180,7 +188,8 @@ _zui_ta_draw() { # y x w h focused
   done
   if [[ -z ${_zui_ta_lines[1]} && ${#_zui_ta_lines} == 1 && -n $_zui_ta_placeholder ]]; then
     _zui_truncate " $_zui_ta_placeholder" "$tw"
-    _zui_put $y $x "$REPLY" "${_ZUI_STYLE[muted]}"
+    local px=$(( x + (gutter ? gutter + 1 : 0) + promptw ))
+    _zui_put $y $px "$REPLY" "${_ZUI_STYLE[muted]}"
   fi
 }
 
@@ -192,9 +201,10 @@ _zui_ta_handle() {
   case $KEY in
     (ENTER)
       if (( _zui_ta_limit > 0 && total >= _zui_ta_limit )); then return 1; fi
+      if (( _zui_ta_max_lines > 0 && ${#_zui_ta_lines} >= _zui_ta_max_lines )); then return 1; fi
       local left=${line[1,col-1]} right=${line[col,-1]}
       _zui_ta_lines[row]=$left
-      _zui_ta_lines=("${_zui_ta_lines[1,row]}" "$right" "${_zui_ta_lines[row+1,-1]}")
+      _zui_ta_lines=("${(@)_zui_ta_lines[1,row]}" "$right" "${(@)_zui_ta_lines[row+1,-1]}")
       _zui_ta_row=$(( row + 1 )); _zui_ta_col=1 ;;
     (BACKSPACE)
       if (( col > 1 )); then
@@ -203,7 +213,7 @@ _zui_ta_handle() {
       elif (( row > 1 )); then
         local prev=${_zui_ta_lines[row-1]}
         _zui_ta_lines[row-1]=$prev$line
-        _zui_ta_lines=("${_zui_ta_lines[1,row-1]}" "${_zui_ta_lines[row+1,-1]}")
+        _zui_ta_lines=("${(@)_zui_ta_lines[1,row-1]}" "${(@)_zui_ta_lines[row+1,-1]}")
         _zui_ta_row=$(( row - 1 )); _zui_ta_col=$(( ${#prev} + 1 ))
       else
         return 1
@@ -213,7 +223,7 @@ _zui_ta_handle() {
         _zui_ta_lines[row]=${line[1,col-1]}${line[col+1,-1]}
       elif (( row < ${#_zui_ta_lines} )); then
         _zui_ta_lines[row]=$line${_zui_ta_lines[row+1]}
-        _zui_ta_lines=("${_zui_ta_lines[1,row]}" "${_zui_ta_lines[row+2,-1]}")
+        _zui_ta_lines=("${(@)_zui_ta_lines[1,row]}" "${(@)_zui_ta_lines[row+2,-1]}")
       else
         return 1
       fi ;;

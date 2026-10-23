@@ -148,6 +148,23 @@ out=$(ZUI_FORCE_COLOR=1 "$ZUI_ROOT/bin/zui" help choose 2>/dev/null)
 if [[ $out == *$'\e'* ]]; then ok=1; else ok=0; fi
 t_ok $ok "help has ANSI with ZUI_FORCE_COLOR"
 
+# 19. gum-style list prefixes and output delimiter
+_zui_test_run "$ZUI_ROOT/bin/zui choose --no-limit --selected-prefix 'A ' --unselected-prefix 'B ' --output-delimiter ',' alpha beta gamma" ' ' 0.2 $'\e[B' 0.2 ' ' 0.2 $'\r' 0.4
+t_eq "$_T_OUT" "alpha,beta" "choose honours prefixes and output delimiter"
+
+# 20. label delimiter keeps the label on screen and prints the value
+_zui_test_run "$ZUI_ROOT/bin/zui choose --label-delimiter ':' alpha:1 beta:2" $'\e[B' 0.3 $'\r' 0.4
+t_eq "$_T_OUT" "2" "choose label delimiter prints the value"
+
+# 21. interactive table row picker and return-column
+printf 'name,age\nAda,36\nGrace,45\n' > "$ZUI_ROOT/scratch/itest/table.csv"
+_zui_test_run "$ZUI_ROOT/bin/zui table --return-column 1 < $ZUI_ROOT/scratch/itest/table.csv" $'\r' 0.5
+t_eq "$_T_OUT" "Ada" "table interactive picker returns a column"
+
+# 22. dialog(1)-style quoting
+_zui_test_run "$ZUI_ROOT/bin/zui input --value quoted --quoted" $'\r' 0.4
+t_eq "$_T_OUT" '"quoted"' "input --quoted wraps the value"
+
 print
 print -r -- "$(( TESTS - FAILS ))/$TESTS tests passed"
 (( FAILS == 0 ))

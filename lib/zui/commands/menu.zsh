@@ -7,10 +7,15 @@ _ZUI_OPTDEF_menu=(
   '|height|int|Number of visible rows (0 = fit content)|0'
   '|cursor|str|Prefix drawn before the focused row|> '
   '|button|multi|Button in Label=action form|'
+  '|input-delimiter|str|Delimiter used when reading stdin (default: newline)|'
+  '|output-delimiter|str|Delimiter placed between returned values|'
+  '|label-delimiter|str|Split items into label and value on this delimiter|'
+  '|strip-ansi|flag|Remove ANSI escapes from items read from stdin|0'
   '|timeout|str|Close with exit 124 after a duration|'
   '|width|int|Dialog width in columns (0 = automatic)|0'
   '|default-button|int|Button triggered by Enter|1'
   '|border|str|Border: auto, rounded, sharp, double, thick, ascii, none|auto'
+  "${_ZUI_DIALOGDEF[@]}"
 )
 
 _ZUI_CMD_DESC[menu]="Pick one item from a list inside a dialog with buttons."
@@ -25,9 +30,11 @@ _zui_cmd_menu() {
   _zui_items_from_args
   _zui_need_items
   _zui_list_items=("${_zui_items[@]}")
+  _zui_list_labels=("${_zui_item_labels[@]}")
   _zui_list_multi=0
   _zui_list_build
-  [[ -n ${_ZUI_OPT[selected]:-} ]] && _zui_list_select_value "${_ZUI_OPT[selected]}"
+  local focus=${_ZUI_OPT[selected]:-${_ZUI_OPT[default-item]:-}}
+  [[ -n $focus ]] && _zui_list_select_value "$focus"
   _zui_list_cursor_char=${_ZUI_OPT[cursor]:-> }
 
   _zui_dlg[widget]=list
@@ -43,6 +50,6 @@ _zui_cmd_menu() {
 
   _zui_dialog_run
   local rc=$?
-  _zui_emit "$_ZUI_OUT"
+  _zui_emit_out "$_ZUI_OUT"
   return $rc
 }

@@ -5,6 +5,7 @@ _ZUI_EXAMPLES[completion]=$'eval "$(zui completion zsh)"\nzui completion bash > 
 _ZUI_NOTES[completion]=$'The generated script completes command names and delegates file arguments to the shell. It intentionally does not complete every flag.'
 
 _zui_cmd_completion() {
+  [[ ${1-} == (--help|-h) ]] && { _zui_help completion; return 0; }
   local shell=${1:-}
   [[ -z $shell ]] && { _zui_err "usage: zui completion <zsh|bash>"; return 2; }
   case $shell in

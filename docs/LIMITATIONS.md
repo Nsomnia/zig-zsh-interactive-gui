@@ -12,10 +12,11 @@ Known constraints, in rough order of practical impact.
    terminals/terminfo combinations need a full re-init. If a resize looks wrong,
    close and reopen the dialog.
 4. **zcurses is capped at the advertised colour count** (usually 256). Theme
-   colours are indices; truecolour is only used by the ANSI writer (`style`,
-   help).
-5. **`table` is static.** It parses and prints the table; it does not scroll or
-   select rows. This is deliberate so it is safe in pipelines.
+   colours are indices; truecolour is only used by the ANSI writer (`style`).
+   Help intentionally sticks to the portable 8/16-colour set.
+5. **`table` selects rows but does not scroll horizontally.** On a terminal it
+   opens a row picker; piped output is the static bordered table so it stays
+   safe in scripts. Very wide tables are clamped to the terminal width.
 6. **Durations are integer units**: `500ms`, `5s`, `2m`, `1h`. Decimal seconds
    such as `0.5s` are rejected; use `500ms`.
 7. **`run:` actions are shell evaluation.** `zui` executes them after restoring
@@ -37,3 +38,8 @@ Known constraints, in rough order of practical impact.
     mode with `--ascii` or a UTF-8 `LANG`.
 14. **Integration tests use timing sleeps.** They are stable locally but may
     need larger waits on a very slow CI runner.
+15. **`format --type code` does not highlight syntax.** It passes text through;
+    `--language` is accepted for gum compatibility. Markdown rendering is
+    lightweight and drops inline emphasis markers rather than styling runs.
+16. **`--padding` is not applied to prompt dialogs.** Dialog inner spacing is
+    fixed; `style` has full padding and margin support.

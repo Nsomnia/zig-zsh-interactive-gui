@@ -137,11 +137,53 @@ t_ok $ok "log json"
 out=$("$ZUI_ROOT/bin/zui" log --level info --min-level error msg 2>/dev/null)
 t_eq "$out" "" "log min-level filters"
 
+# --- new option helpers ----------------------------------------------------
+_zui_delim 'a\nb\tc'; t_eq "$REPLY" $'a\nb\tc' "delimiter unescapes \\n and \\t"
+_zui_csv_split 'a,b' ','; _zui_csv_fit 4
+t_eq "${#_ZUI_CSV_FIELDS}" 4 "csv fields-per-record pads"
+_zui_csv_split 'a,b,c,d' ','; _zui_csv_fit 2
+t_eq "${(j:,:)_ZUI_CSV_FIELDS}" "a,b" "csv fields-per-record truncates"
+
+_zui_parse choose --cursor.foreground 212
+t_eq "${_ZUI_OPT[cursor.foreground]}" 212 "parser accepts per-part style colour"
+_ZUI_STYLE[selection_focus]="1/2 bold"
+_zui_OPT=(cursor.foreground 212)
+_zui_apply_style_opts
+t_eq "${_ZUI_STYLE[selection_focus]}" "212/2 bold" "style flag overrides the semantic style"
+_zui_OPT=()
+_ZUI_EMIT=1
+_ZUI_OPT=(quoted 1)
+_zui_emit_out $'a\nb' > /tmp/zui-unit-out
+t_eq "$(</tmp/zui-unit-out)" $'"a"\n"b"' "emit quotes every line"
+_ZUI_OPT=(output-fd 3)
+exec 3>/tmp/zui-unit-fd
+_zui_emit_out fd-test
+exec 3>&-
+t_eq "$(</tmp/zui-unit-fd)" "fd-test" "emit honours output-fd"
+_ZUI_OPT=()
+
+out=$(printf 'name,age\nAda,36\n' | "$ZUI_ROOT/bin/zui" table --print --fields-per-record 3 2>/dev/null)
+t_ok $(( ${out[(I)*Ada*]} > 0 )) "table fields-per-record renders"
+
+out=$("$ZUI_ROOT/bin/zui" format --type emoji 'ship :rocket:' 2>/dev/null)
+t_eq "$out" "ship 🚀" "format emoji"
+out=$("$ZUI_ROOT/bin/zui" format --type markdown '# Title' 2>/dev/null)
+t_eq "$out" "Title" "format markdown strips heading markers"
+"$ZUI_ROOT/bin/zui" format --type nope x >/dev/null 2>&1
+t_eq "$?" 2 "format rejects unknown type"
+
 # --- help / errors ---------------------------------------------------------
 out=$("$ZUI_ROOT/bin/zui" help choose 2>/dev/null)
 t_ok $(( ${out[(I)*OPTIONS*]} > 0 )) "help has options"
 out=$("$ZUI_ROOT/bin/zui" help choose 2>/dev/null)
 t_ok $(( ${out[(I)*$'\e'*]} == 0 )) "help is plain when piped"
+out=$("$ZUI_ROOT/bin/zui" choose --help 2>&1)
+t_ok $(( ${out[(I)*OPTIONS*]} > 0 )) "subcommand --help prints options"
+out=$("$ZUI_ROOT/bin/zui" choose help 2>&1)
+t_ok $(( ${out[(I)*OPTIONS*]} > 0 )) "subcommand help word prints options"
+out=$(ZUI_FORCE_COLOR=1 "$ZUI_ROOT/bin/zui" --help 2>/dev/null)
+if [[ $out == *$'\e[38;5'* ]]; then basic=0; else basic=1; fi
+t_ok $basic "help colour uses the portable 8/16 palette"
 
 "$ZUI_ROOT/bin/zui" choose --bogus >/dev/null 2>&1
 t_eq "$?" 2 "unknown option exits 2"

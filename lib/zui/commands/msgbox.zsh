@@ -10,6 +10,7 @@ _ZUI_OPTDEF_msgbox=(
   '|height|int|Dialog height in rows (0 = automatic)|0'
   '|default-button|int|Button focused and triggered by Enter|1'
   '|border|str|Border: auto, rounded, sharp, double, thick, ascii, none|auto'
+  "${_ZUI_DIALOGDEF[@]}"
 )
 
 _ZUI_CMD_DESC[msgbox]="Show a message box with any number of action buttons."
@@ -34,11 +35,14 @@ _zui_cmd_msgbox() {
     _zui_multi button
     _zui_dlg_buttons=("${_ZUI_MULTI_ARR[@]}")
   else
-    _zui_dlg_buttons=("OK=exit:0")
+    _zui_dlg_buttons=()
+    (( ${_ZUI_OPT[no-ok]:-0} )) || _zui_dlg_buttons+=("${_ZUI_OPT[ok-label]:-OK}=exit:0")
+    (( ${_ZUI_OPT[help-button]:-0} )) && _zui_dlg_buttons+=("${_ZUI_OPT[help-label]:-Help}=exit:0")
+    (( ${_ZUI_OPT[extra-button]:-0} )) && _zui_dlg_buttons+=("${_ZUI_OPT[extra-label]:-Extra}=exit:0")
   fi
 
   _zui_dialog_run
   local rc=$?
-  _zui_emit "$_ZUI_OUT"
+  _zui_emit_out "$_ZUI_OUT"
   return $rc
 }

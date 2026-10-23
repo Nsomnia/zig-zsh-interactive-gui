@@ -18,6 +18,9 @@ _ZUI_OPTDEF_style=(
   '|underline|flag|Underlined text|0'
   '|strikethrough|flag|Struck-through text|0'
   '|faint|flag|Faint text|0'
+  '|trim|flag|Trim whitespace at the start and end of every line|0'
+  '|strip-ansi|flag|Remove ANSI escape sequences before styling|0'
+  '|no-strip-ansi|flag|Keep ANSI escape sequences (the default)|0'
   '|text|str|Text to style (also accepted as arguments)|'
 )
 
@@ -68,6 +71,19 @@ _zui_cmd_style() {
   if [[ -z $text ]] && (( ${#_ZUI_ARGS} )); then text="${(j: :)_ZUI_ARGS}"; fi
   if [[ -z $text && ! -t 0 ]]; then text=$(cat); fi
   [[ -z $text ]] && { print -r -- ""; return 0; }
+  if (( ${_ZUI_OPT[strip-ansi]:-0} )) && (( ! ${_ZUI_OPT[no-strip-ansi]:-0} )); then
+    _zui_strip_ansi "$text"; text=$REPLY
+  fi
+  if (( ${_ZUI_OPT[trim]:-0} )); then
+    local -a tl=("${(@f)text}") tl2=()
+    local ln
+    for ln in "${tl[@]}"; do
+      ln=${ln#"${ln%%[![:space:]]*}"}
+      ln=${ln%"${ln##*[![:space:]]}"}
+      tl2+=("$ln")
+    done
+    text="${(pj:\n:)tl2}"
+  fi
 
   local fg=${_ZUI_OPT[foreground]:-}
   local bg=${_ZUI_OPT[background]:-}
@@ -116,7 +132,7 @@ _zui_cmd_style() {
     width=$max
   fi
   (( width < 1 )) && width=1
-  (( height > 0 )) && (( ${#lines} > height )) && lines=("${lines[1,height]}")
+  (( height > 0 )) && (( ${#lines} > height )) && lines=("${(@)lines[1,height]}")
   (( height > 0 )) && while (( ${#lines} < height )); do lines+=(""); done
 
   _zui_style_chars "$border"

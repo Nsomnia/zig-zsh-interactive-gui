@@ -252,47 +252,124 @@ _zui_sgr() {
   (( ${#out} )) && print -r -- $'\e['"${(j:;:)out}"'m'
 }
 
+# Help text uses only the portable 8/16-colour SGR set plus attributes, so it
+# survives every tty that understands ANSI.  256-colour help is on the roadmap.
 _zui_ansi() { # style semantic
   emulate -L zsh
   local s=$1 p=${ZUI_ANSI_PROFILE:-none}
   [[ $p == none ]] && return 0
-  local fg="" bg="" attr=""
-  if [[ $p == (256|true) ]]; then
-    case $s in
-      (title)     fg=81;  attr=bold ;;
-      (heading)   fg=213; attr=bold ;;
-      (cmd)       fg=114; attr=bold ;;
-      (opt)       fg=117 ;;
-      (metavar)   fg=180 ;;
-      (dim|muted) fg=244 ;;
-      (accent)    fg=213; attr=bold ;;
-      (err)       fg=203; attr=bold ;;
-      (ok)        fg=114; attr=bold ;;
-      (warn)      fg=221; attr=bold ;;
-      (bold)      attr=bold ;;
-      (underline) attr=underline ;;
-      (reset)     printf '\e[0m'; return ;;
-      (*)         return ;;
-    esac
-  else
-    case $s in
-      (title)     fg=cyan; attr=bold ;;
-      (heading)   fg=magenta; attr=bold ;;
-      (cmd)       fg=green; attr=bold ;;
-      (opt)       fg=blue ;;
-      (metavar)   fg=yellow ;;
-      (dim|muted) fg=white ;;
-      (accent)    fg=magenta; attr=bold ;;
-      (err)       fg=red; attr=bold ;;
-      (ok)        fg=green; attr=bold ;;
-      (warn)      fg=yellow; attr=bold ;;
-      (bold)      attr=bold ;;
-      (underline) attr=underline ;;
-      (reset)     printf '\e[0m'; return ;;
-      (*)         return ;;
-    esac
-  fi
-  _zui_sgr "$fg" "$bg" $attr
+  local -a c
+  case $s in
+    (title)     c=(1 4 36) ;;
+    (heading)   c=(1 35) ;;
+    (cmd)       c=(1 32) ;;
+    (opt)       c=(34) ;;
+    (metavar)   c=(33) ;;
+    (dim|muted) c=(2) ;;
+    (accent)    c=(1 35) ;;
+    (err)       c=(1 31) ;;
+    (ok)        c=(1 32) ;;
+    (warn)      c=(1 33) ;;
+    (bold)      c=(1) ;;
+    (underline) c=(4) ;;
+    (reverse)   c=(7) ;;
+    (reset)     printf '\e[0m'; return ;;
+    (*)         return ;;
+  esac
+  printf '\e[%sm' "${(j:;:)c}"
 }
 
 _zui_color_reset() { [[ ${ZUI_ANSI_PROFILE:-none} != none ]] && printf '\e[0m'; }
+
+# ---------------------------------------------------------------------------
+# gum-compatible per-part style flags (--cursor.foreground, --item.background, ...)
+# ---------------------------------------------------------------------------
+typeset -gA _ZUI_STYLE_MAP=(
+  cursor selection_focus
+  item text
+  selected selection
+  unselected button
+  selected-indicator mark
+  match-highlight selection
+  cursor-prefix accent
+  selected-prefix mark
+  unselected-prefix text
+  header title
+  text text
+  cursor-text selection_focus
+  match accent
+  prompt accent
+  placeholder muted
+  indicator mark
+  line-number muted
+  symlink accent
+  directory accent
+  file text
+  permissions muted
+  file-size muted
+  border frame
+  cell text
+  shadow shadow
+  spinner accent
+  title title
+  base text
+  cursor-line selection
+  cursor-line-number muted
+  end-of-buffer muted
+  help footer
+  footer footer
+  level accent
+  time muted
+  prefix accent
+  message text
+  key muted
+  value text
+  separator muted
+  frame frame
+  button button
+  selection selection
+  selection-focus selection_focus
+  mark mark
+  input input
+  caret caret
+  gauge gauge
+)
+
+_zui_hex_256() { # #rrggbb -> nearest xterm-256 index
+  local hex=${1#\#} r g b
+  [[ ${#hex} == 6 ]] || { REPLY=$1; return 1; }
+  r=$(( 16#${hex[1,2]} )); g=$(( 16#${hex[3,4]} )); b=$(( 16#${hex[5,6]} ))
+  REPLY=$(( 16 + 36 * (r * 5 / 255) + 6 * (g * 5 / 255) + (b * 5 / 255) ))
+}
+
+_zui_style_color() { # value -> REPLY accepted by zcurses attr
+  local v=$1 n
+  if [[ $v == \#* ]]; then
+    _zui_hex_256 "$v"
+  elif [[ $v == default ]]; then
+    REPLY=default
+  else
+    n=$(_zui_ansi_named16 "$v")
+    (( n >= 0 )) && REPLY=$n || REPLY=$v
+  fi
+}
+
+_zui_apply_style_opts() {
+  emulate -L zsh
+  local k prefix key base fg bg spec
+  for k in ${(k)_ZUI_OPT}; do
+    [[ $k == *.* ]] || continue
+    [[ -n ${_ZUI_OPT[$k]:-} ]] || continue
+    prefix=${k%%.*}; key=${_ZUI_STYLE_MAP[$prefix]:-}
+    [[ -n $key ]] || continue
+    base=${_ZUI_STYLE[$key]:-default/default}
+    fg=${base%%/*}; bg=${base#*/}; bg=${bg%% *}
+    spec=${_ZUI_STYLE[$key]#* }
+    if [[ $k == *.foreground ]]; then
+      _zui_style_color "${_ZUI_OPT[$k]}"; fg=$REPLY
+    else
+      _zui_style_color "${_ZUI_OPT[$k]}"; bg=$REPLY
+    fi
+    _ZUI_STYLE[$key]="$fg/$bg${spec:+ $spec}"
+  done
+}
