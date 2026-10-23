@@ -45,7 +45,7 @@ buttons bound to actions**, and results stay pipeable: the UI is drawn on
   degrades to attributes-only `mono`, and offers `--ascii` for terminals without
   UTF-8. Help text deliberately uses the portable 8/16-colour ANSI set plus
   bold/underline/dim so it survives every tty.
-- **Tested.** 68 unit assertions and 30 pseudo-terminal integration tests drive
+- **Tested.** 68 unit assertions and 31 pseudo-terminal integration tests drive
   the real UI with `zsh/zpty`.
 
 The repository name is historical; the command is `zui` (zsh interface).

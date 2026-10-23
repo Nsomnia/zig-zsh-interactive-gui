@@ -126,7 +126,7 @@ _zui_cmd_spin() {
     fi
   done
   wait $pid 2>/dev/null
-  if (( code != 130 )) && [[ -r $tmp/status ]]; then
+  if (( code == 0 )) && [[ -r $tmp/status ]]; then
     code=$(<$tmp/status)
     [[ $code == <-> ]] || code=1
   fi

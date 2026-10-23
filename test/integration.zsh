@@ -118,6 +118,11 @@ t_eq "$_T_OUT" "ran" "run action output reaches stdout"
 _zui_test_run "$ZUI_ROOT/bin/zui spin --title wait -- sleep 5" $'\e' 0.8
 t_eq "$_T_RC" 130 "spin abort exits 130"
 
+# 12d. spin timeout kills its child
+_T_WAIT=2.4
+_zui_test_run "$ZUI_ROOT/bin/zui spin --timeout 300ms --title wait -- sleep 5"
+t_eq "$_T_RC" 124 "spin timeout exits 124"
+
 # 13. infobox
 _zui_test_run "$ZUI_ROOT/bin/zui infobox hi" 'x' 0.4
 t_eq "$_T_RC" 0 "infobox dismisses with any key"
