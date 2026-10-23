@@ -1,0 +1,6 @@
+scratch/
+.opencode/
+.DS_Store
+*.zwc
+*.zwc.old
+ZUI_DEBUG

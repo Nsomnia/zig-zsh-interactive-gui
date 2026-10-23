@@ -1,0 +1,11 @@
+#!/usr/bin/env zsh
+# zui - a dialog(1)-style, gum-compatible terminal toolkit written in zsh.
+# The only dependencies are zsh with the zsh/curses module and a terminal.
+emulate -R zsh
+ZUI_ROOT=${0:A:h:h}
+export ZUI_ROOT
+source "$ZUI_ROOT/lib/zui/core.zsh" || exit 3
+_zui_load || exit 3
+TRAPEXIT() { _zui_ui_end }
+_zui_main "$@"
+exit $?
